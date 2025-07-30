@@ -442,11 +442,18 @@
                         console.log("Posts array after snapshot processing:", firebasePosts); // Log the array before assigning to global posts
                         console.log("Global posts array after assignment:", posts); // Log global posts array
 
-                        // Hide loading state
+                        // Hide loading state and display appropriate message
                         loadingState.style.display = 'none';
-                        
-                        // Render posts
-                        renderPosts();
+                        if (posts.length === 0) {
+                            postsFeed.innerHTML = `
+                                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+                                    <div class="text-gray-400 text-6xl mb-4">🤔</div>
+                                    <p class="text-gray-600 text-lg">No posts yet. Be the first to share something!</p>
+                                </div>
+                            `;
+                        } else {
+                            renderPosts(); // Render posts if there are any
+                        }
                         
                         console.log("Firebase listener active, posts loaded:", posts.length);
                     }, (error) => {
