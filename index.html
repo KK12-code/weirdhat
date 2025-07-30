@@ -388,7 +388,8 @@
                 return 'just now';
             } else if (diffInMinutes < 60) {
                 return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
-            } else if (diffInMinutes < 1440) { // Less than 24 hours
+            } else if (diffInMinutes < 1440) // Less than 24 hours
+                {
                 const hours = Math.floor(diffInMinutes / 60);
                 return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
             } else {
@@ -692,7 +693,8 @@
                     // User is signed in.
                     currentUserId = user.uid;
                     console.log("Firebase Auth: User signed in with UID:", currentUserId);
-                    initializeFirebaseListener(); // Start listening to posts once authenticated
+                    // Call initializeFirebaseListener ONLY after currentUserId is set
+                    initializeFirebaseListener(); 
                 } else {
                     // User is signed out. Sign in anonymously.
                     console.log("Firebase Auth: No user signed in, attempting anonymous sign-in...");
@@ -706,12 +708,14 @@
                             await window.signInAnonymously(window.auth);
                             console.log("Signed in anonymously.");
                         }
+                        // After successful sign-in, onAuthStateChanged will be triggered again,
+                        // and initializeFirebaseListener will be called from the 'if (user)' block.
                     } catch (error) {
                         console.error("Error during anonymous sign-in:", error);
                         displayMessage("Failed to sign in to Firebase. Some features may not work.", "error");
-                        // Set a fallback user ID if anonymous sign-in fails
+                        // Set a fallback user ID if anonymous sign-in fails, and try to initialize listener
                         currentUserId = getUserId(); 
-                        initializeFirebaseListener(); // Try to initialize listener even without full auth
+                        initializeFirebaseListener(); 
                     }
                 }
             });
