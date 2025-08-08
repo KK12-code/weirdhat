@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeirdHat Community Posts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            background-image: url('https://mir-s3-cdn-cf.behance.net/project_modules/disp/f33f6f72318455.5be33406354a2.gif');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column; /* Stack the containers vertically */
+            justify-content: flex-start;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+        .header-container,
+        .content-container {
+            max-width: 800px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+            backdrop-filter: blur(5px); /* Frosted glass effect */
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        .content-container {
+            margin-top: 2rem; /* Add space between the two containers */
+        }
+        .posts-list {
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+        }
+        .post-card {
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white for post cards */
+        }
+        .reply-box {
+            background-color: rgba(243, 244, 246, 0.8); /* Semi-transparent gray for reply box */
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: rgba(254, 254, 254, 0.9); /* Slightly transparent modal */
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover, .close-button:focus {
+            color: black;
+        }
+        .vote-button {
+            transition: all 0.2s ease-in-out;
+            transform: scale(1.0);
+        }
+        .vote-button:hover {
+            transform: scale(1.05);
+        }
+        .vote-button.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+            transform: scale(1.0);
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- The Header Box -->
+    <div class="header-container p-6 md:p-8 text-center">
+        <h1 class="text-4xl font-bold text-gray-800">The WeirdHat Hub</h1>
+        <p class="text-gray-600 mt-2">A place for hat enthusiasts. Share your latest creations!</p>
+    </div>
+
+    <!-- The Content Box - now a single, transparent box -->
+    <div class="content-container p-6 md:p-8 space-y-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-700 text-center">Share Something That You Can't Share in Person. 🤔</h2>
+
+        <!-- Post Input -->
+        <div class="mb-4">
+            <textarea id="post-input"
+                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y transition duration-200"
+                      rows="3"
+                      placeholder="Share your thoughts or a link to your hat masterpiece!"></textarea>
+            <!-- Centered Post Button -->
+            <div class="flex justify-center mt-3">
+                <button id="submit-post-btn"
+                        class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-8 rounded-lg text-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                    Post
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Message -->
+        <div id="loading-message" class="text-center text-gray-500 my-4">Initializing application...</div>
+
+        <!-- Posts List -->
+        <div id="posts-list" class="posts-list text-left space-y-6 max-h-[500px] overflow-y-auto p-2 md:p-4 rounded-lg border border-gray-200">
+            <!-- Posts will be loaded here dynamically -->
+            <p class="text-gray-500 text-center">No posts yet. Be the first to share your thoughts!</p>
+        </div>
+    </div>
+
+    <!-- Custom Modal for messages -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal()">&times;</span>
+            <p id="modal-message"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, orderBy, runTransaction, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // IMPORTANT: The "Missing or insufficient permissions" error means you need to set up
+        // your Firebase Firestore security rules to allow read and write access for authenticated users.
+        // Copy and paste the following rules into the 'Rules' tab of your Firestore Database in the Firebase Console:
+        //
+        // rules_version = '2';
+        // service cloud.firestore {
+        //   match /databases/{database}/documents {
+        //
+        //     // Public posts and their replies
+        //     match /artifacts/{appId}/public/data/posts/{postId} {
+        //       allow read: if request.auth != null;
+        //       allow create: if request.auth != null;
+        //       allow update: if request.auth != null; // Allow updates for voting
+        //       allow delete: if false;
+        //
+        //       // Replies sub-collection
+        //       match /replies/{replyId} {
+        //         allow read: if request.auth != null;
+        //         allow create: if request.auth != null;
+        //         allow update, delete: if false;
+        //       }
+        //     }
+        //
+        //     // User-specific vote records
+        //     match /artifacts/{appId}/users/{userId}/post_votes/{postId} {
+        //       allow read, create, update: if request.auth != null && request.auth.uid == userId;
+        //       allow delete: if false;
+        //     }
+        //   }
+        // }
+
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBK97bE83_YAF4wdoWEJtDDIj7YPG823-Q",
+            authDomain: "weirdhat-2d71f.firebaseapp.com",
+            projectId: "weirdhat-2d71f",
+            storageBucket: "weirdhat-2d71f.firebasestorage.app",
+            messagingSenderId: "183250614435",
+            appId: "1:183250614435:web:656707b5ef86ac12486716",
+            measurementId: "G-D6P8MSFE1P"
+        };
+        const appId = firebaseConfig.projectId;
+
+        let app, db, auth, currentUserId;
+        let isAuthReady = false;
+        let postsListenerUnsubscribe = null;
+
+        // HTML element references
+        const postInput = document.getElementById('post-input');
+        const submitPostBtn = document.getElementById('submit-post-btn');
+        const postsList = document.getElementById('posts-list');
+        const loadingMessage = document.getElementById('loading-message');
+        const modal = document.getElementById('myModal');
+        const modalMessage = document.getElementById('modal-message');
+
+        /**
+         * Displays a custom modal with a given message.
+         * @param {string} message The message to display in the modal.
+         */
+        function showModal(message) {
+            modalMessage.textContent = message;
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * Closes the custom modal.
+         */
+        window.closeModal = function() {
+            modal.style.display = 'none';
+        }
+
+        /**
+         * Sets the application's ready state, enabling/disabling UI elements.
+         * @param {boolean} ready - True if the app is ready, false otherwise.
+         */
+        function setAppReadyState(ready) {
+            isAuthReady = ready;
+            if (ready) {
+                loadingMessage.textContent = "Application is Ready!";
+                postInput.disabled = false;
+                submitPostBtn.disabled = false;
+                submitPostBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                console.log("App is ready. Posting enabled.");
+            } else {
+                loadingMessage.textContent = "Initializing application...";
+                postInput.disabled = true;
+                submitPostBtn.disabled = true;
+                submitPostBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                console.log("App is not ready. Posting disabled.");
+            }
+        }
+
+        // Initialize Firebase services
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            console.log("Firebase services initialized successfully.");
+        } catch (error) {
+            console.error("Critical Error: Firebase initialization failed:", error);
+            showModal("Initialization failed. Check the console for errors.");
+            setAppReadyState(false);
+            app = null; db = null; auth = null;
+        }
+
+        const postsCollectionRef = db ? collection(db, `artifacts/${appId}/public/data/posts`) : null;
+
+        /**
+         * Renders the posts to the UI.
+         * @param {Array<Object>} posts - An array of post objects.
+         */
+        function displayPosts(posts) {
+            postsList.innerHTML = '';
+            if (posts.length === 0) {
+                postsList.innerHTML = '<p class="text-gray-500 text-center">No posts yet. Be the first to share your thoughts!</p>';
+                return;
+            }
+
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const imageRegex = /\.(jpeg|jpg|gif|png|webp|svg)$/i;
+
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.className = 'post-card p-4 rounded-xl shadow-sm border border-gray-100';
+                const date = post.timestamp ? new Date(post.timestamp.seconds * 1000).toLocaleString() : 'Just now';
+                
+                // Process post content to replace URLs with links/images
+                let processedPost = post.content;
+                processedPost = processedPost.replace(urlRegex, (url) => {
+                    if (imageRegex.test(url)) {
+                        return `<img src="${url}" alt="User submitted image" class="max-w-full h-auto rounded-lg my-2">`;
+                    } else {
+                        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:underline">${url}</a>`;
+                    }
+                });
+                
+                // Construct the main post HTML with the new replies toggle button
+                postElement.innerHTML = `
+                    <p class="text-sm text-gray-600 font-semibold mb-1">Anonymous <span class="text-gray-400 font-normal text-xs ml-2">${date}</span></p>
+                    <p class="text-gray-800 break-words mt-2">${processedPost}</p>
+                    <div class="flex items-center mt-4 text-gray-500 text-sm space-x-4">
+                        <!-- Upvote Button with SVG -->
+                        <div class="flex items-center space-x-1">
+                            <button class="vote-button flex items-center space-x-1 text-green-500 hover:text-green-600 transition-colors" data-post-id="${post.id}" data-vote-type="upvote">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.25l-7 7h4v8h6v-8h4z"/></svg>
+                                <span>Upvote</span>
+                            </button>
+                            <span class="font-bold text-gray-700">${post.upvotes || 0}</span>
+                        </div>
+                        <!-- Downvote Button with SVG -->
+                        <div class="flex items-center space-x-1">
+                            <button class="vote-button flex items-center space-x-1 text-red-500 hover:text-red-600 transition-colors" data-post-id="${post.id}" data-vote-type="downvote">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 19.75l7-7h-4v-8h-6v8h-4z"/></svg>
+                                <span>Downvote</span>
+                            </button>
+                            <span class="font-bold text-gray-700">${post.downvotes || 0}</span>
+                        </div>
+                        <!-- Replies Toggle Button -->
+                        <div class="flex items-center space-x-1">
+                           <button class="toggle-replies-btn flex items-center space-x-1 text-gray-500 hover:text-gray-600 transition-colors" data-post-id="${post.id}">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                               <span>Replies (${post.repliesCount || 0})</span>
+                           </button>
+                        </div>
+                    </div>
+                    <!-- Replies Section, initially hidden -->
+                    <div class="replies-section hidden transition-all duration-300 ease-in-out mt-4">
+                        <!-- Reply Input and Button -->
+                        <div class="flex items-center space-x-2">
+                            <input type="text" placeholder="Write a reply..." class="reply-input reply-box w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm">
+                            <button class="submit-reply-btn bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm transition duration-300 ease-in-out">Reply</button>
+                        </div>
+                        <!-- Replies List -->
+                        <div class="replies-list border-t border-gray-200 pt-3 mt-3 ml-6 space-y-3">
+                            <!-- Replies will be loaded here dynamically -->
+                            <p class="text-gray-400 text-sm text-center">No replies yet.</p>
+                        </div>
+                    </div>
+                `;
+
+                postsList.appendChild(postElement);
+
+                // Add event listeners for votes, replies toggle, and reply submission
+                postElement.querySelector('.vote-button[data-vote-type="upvote"]').addEventListener('click', () => handleVote(post.id, 'upvote'));
+                postElement.querySelector('.vote-button[data-vote-type="downvote"]').addEventListener('click', () => handleVote(post.id, 'downvote'));
+                
+                const toggleRepliesBtn = postElement.querySelector('.toggle-replies-btn');
+                const repliesSection = postElement.querySelector('.replies-section');
+                toggleRepliesBtn.addEventListener('click', () => {
+                    repliesSection.classList.toggle('hidden');
+                    // Only start listening to replies when the section is shown
+                    if (!repliesSection.classList.contains('hidden') && !repliesSection.hasAttribute('data-replies-loaded')) {
+                        fetchReplies(post.id, repliesSection.querySelector('.replies-list'));
+                        repliesSection.setAttribute('data-replies-loaded', 'true');
+                    }
+                });
+
+                const submitReplyBtn = postElement.querySelector('.submit-reply-btn');
+                const replyInput = postElement.querySelector('.reply-input');
+                submitReplyBtn.addEventListener('click', () => handleSubmitReply(post.id, replyInput));
+            
+            });
+
+            checkUserVotes(posts); // Check and update vote button states
+            postsList.scrollTop = postsList.scrollHeight; // Scroll to the bottom
+        }
+
+        /**
+         * Checks the user's vote history for each post and updates the UI accordingly.
+         * @param {Array<Object>} posts - An array of post objects.
+         */
+        async function checkUserVotes(posts) {
+            if (!currentUserId || !db) return;
+            
+            posts.forEach(async (post) => {
+                const userVoteRef = doc(db, `artifacts/${appId}/users/${currentUserId}/post_votes`, post.id);
+                try {
+                    const docSnap = await getDoc(userVoteRef);
+                    const upvoteButton = document.querySelector(`.vote-button[data-post-id="${post.id}"][data-vote-type="upvote"]`);
+                    const downvoteButton = document.querySelector(`.vote-button[data-post-id="${post.id}"][data-vote-type="downvote"]`);
+
+                    if (upvoteButton && downvoteButton) {
+                        // Re-enable buttons by default to handle vote changes
+                        upvoteButton.disabled = false;
+                        upvoteButton.classList.remove('disabled');
+                        downvoteButton.disabled = false;
+                        downvoteButton.classList.remove('disabled');
+
+                        if (docSnap.exists() && docSnap.data().voteType) {
+                            const voteType = docSnap.data().voteType;
+                            if (voteType === 'upvote') {
+                                upvoteButton.disabled = true;
+                                upvoteButton.classList.add('disabled');
+                            } else if (voteType === 'downvote') {
+                                downvoteButton.disabled = true;
+                                downvoteButton.classList.add('disabled');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error checking vote for post ${post.id}:`, error);
+                }
+            });
+        }
+
+
+        /**
+         * Handles the upvote and downvote logic for a post.
+         * @param {string} postId The ID of the post to vote on.
+         * @param {string} voteType 'upvote' or 'downvote'.
+         */
+        async function handleVote(postId, voteType) {
+            if (!isAuthReady || !currentUserId) {
+                showModal("Please wait for authentication to complete before voting.");
+                return;
+            }
+
+            const postRef = doc(postsCollectionRef, postId);
+            const userVoteRef = doc(db, `artifacts/${appId}/users/${currentUserId}/post_votes`, postId);
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const postDoc = await transaction.get(postRef);
+                    const userVoteDoc = await transaction.get(userVoteRef);
+
+                    if (!postDoc.exists()) {
+                        throw new Error("Post does not exist!");
+                    }
+
+                    const postData = postDoc.data();
+                    let upvotes = postData.upvotes || 0;
+                    let downvotes = postData.downvotes || 0;
+
+                    const hasPreviousVote = userVoteDoc.exists();
+                    const previousVoteType = hasPreviousVote ? userVoteDoc.data().voteType : null;
+
+                    // If the new vote is the same as the previous one, do nothing (or remove the vote)
+                    // For this logic, we'll just prevent casting the same vote twice
+                    if (hasPreviousVote && previousVoteType === voteType) {
+                        showModal(`You have already cast a ${voteType} vote.`);
+                        throw new Error("Already cast this vote");
+                    }
+
+                    // Adjust counts based on previous vote
+                    if (hasPreviousVote) {
+                        if (previousVoteType === 'upvote') {
+                            upvotes--;
+                        } else {
+                            downvotes--;
+                        }
+                    }
+
+                    // Apply the new vote
+                    if (voteType === 'upvote') {
+                        upvotes++;
+                    } else {
+                        downvotes++;
+                    }
+
+                    // Update the post's vote counts
+                    transaction.update(postRef, { upvotes, downvotes });
+
+                    // Record the new user vote
+                    transaction.set(userVoteRef, { voteType });
+                });
+                console.log(`Vote transaction successful for post ${postId}. Vote type: ${voteType}`);
+                checkUserVotes([{id: postId}]); // Re-check state for this specific post
+            } catch (e) {
+                if (e.message !== "Already cast this vote") {
+                    console.error("Vote transaction failed: ", e);
+                    showModal("Failed to cast or change vote. Please try again.");
+                }
+            }
+        }
+
+        /**
+         * Submits a new post to Firestore.
+         */
+        async function submitPost() {
+            if (!isAuthReady) {
+                showModal("Application is not ready to submit posts. Please wait.");
+                return;
+            }
+
+            const postContent = postInput.value.trim();
+            if (postContent === "") {
+                showModal("Please enter a post before submitting.");
+                return;
+            }
+
+            try {
+                // Add the post to the 'posts' collection
+                await addDoc(postsCollectionRef, {
+                    content: postContent,
+                    timestamp: serverTimestamp(), // Use server-side timestamp for consistency
+                    upvotes: 0,
+                    downvotes: 0,
+                    repliesCount: 0 // Initialize replies count
+                });
+                postInput.value = ""; // Clear the input field
+                console.log("Post submitted successfully.");
+            } catch (error) {
+                console.error("Error submitting post:", error);
+                showModal("Failed to submit post. Please try again.");
+            }
+        }
+
+        /**
+         * Submits a new reply to a specific post.
+         * @param {string} postId The ID of the post to reply to.
+         * @param {HTMLInputElement} replyInput The input element containing the reply content.
+         */
+        async function handleSubmitReply(postId, replyInput) {
+             if (!isAuthReady) {
+                showModal("Application is not ready to submit replies. Please wait.");
+                return;
+            }
+
+            const trimmedReply = replyInput.value.trim();
+            if (trimmedReply === "") {
+                showModal("Please enter a reply before submitting.");
+                return;
+            }
+
+            const repliesCollectionRef = collection(db, `artifacts/${appId}/public/data/posts/${postId}/replies`);
+            const postRef = doc(postsCollectionRef, postId);
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const postDoc = await transaction.get(postRef);
+                    if (!postDoc.exists()) {
+                        throw new Error("Post does not exist!");
+                    }
+                    const newRepliesCount = (postDoc.data().repliesCount || 0) + 1;
+                    
+                    // Increment the repliesCount on the post
+                    transaction.update(postRef, { repliesCount: newRepliesCount });
+
+                    // Add the new reply to the replies sub-collection
+                    transaction.set(doc(repliesCollectionRef), {
+                        content: trimmedReply,
+                        timestamp: serverTimestamp()
+                    });
+                });
+                
+                console.log(`Reply and post count updated successfully for post ${postId}.`);
+                // Clear the reply input field after successful submission
+                replyInput.value = '';
+            } catch (error) {
+                console.error(`Error submitting reply for post ${postId}:`, error);
+                showModal("Failed to submit reply. Please try again.");
+            }
+        }
+
+        /**
+         * Fetches and displays replies for a given post in real-time.
+         * @param {string} postId The ID of the post.
+         * @param {HTMLElement} repliesListElement The specific element to render replies into.
+         */
+        function fetchReplies(postId, repliesListElement) {
+            const repliesCollectionRef = collection(db, `artifacts/${appId}/public/data/posts/${postId}/replies`);
+            const q = query(repliesCollectionRef, orderBy('timestamp', 'asc'));
+
+            onSnapshot(q, (snapshot) => {
+                const replies = [];
+                snapshot.forEach(doc => {
+                    replies.push(doc.data());
+                });
+
+                if (repliesListElement) {
+                    repliesListElement.innerHTML = '';
+                    if (replies.length === 0) {
+                        repliesListElement.innerHTML = '<p class="text-gray-400 text-sm text-center">No replies yet.</p>';
+                    } else {
+                        replies.forEach(reply => {
+                            const replyElement = document.createElement('div');
+                            replyElement.className = 'reply-box bg-gray-100 p-2 rounded-lg shadow-sm border border-gray-200';
+                            const date = reply.timestamp ? new Date(reply.timestamp.seconds * 1000).toLocaleString() : 'Just now';
+
+                            replyElement.innerHTML = `
+                                <p class="text-xs text-gray-500 font-semibold mb-1">Anonymous <span class="text-gray-400 font-normal text-xs ml-2">${date}</span></p>
+                                <p class="text-gray-700 break-words text-sm">${reply.content}</p>
+                            `;
+                            repliesListElement.appendChild(replyElement);
+                        });
+                    }
+                }
+
+            }, (error) => {
+                console.error(`Error listening to replies for post ${postId}:`, error);
+            });
+        }
+
+
+        // Add event listener to the submit button
+        submitPostBtn.addEventListener('click', submitPost);
+
+        // Firebase Auth and Firestore listener setup
+        if (auth && db && postsCollectionRef) {
+            // Listen for auth state changes and sign in anonymously if no user is logged in
+            onAuthStateChanged(auth, async (user) => {
+                console.log("onAuthStateChanged fired. User:", user);
+                if (!user) {
+                    // Sign in anonymously if there's no user
+                    try {
+                        const anonUser = await signInAnonymously(auth);
+                        currentUserId = anonUser.user.uid;
+                        console.log("Anonymous user signed in. User ID:", currentUserId);
+                    } catch (error) {
+                        console.error("Anonymous sign-in failed:", error);
+                        showModal("Could not authenticate. Posting functionality is disabled.");
+                        setAppReadyState(false);
+                        return;
+                    }
+                } else {
+                    currentUserId = user.uid;
+                }
+                
+                // Once authenticated, set up the real-time listener for posts
+                if (postsListenerUnsubscribe) {
+                    postsListenerUnsubscribe(); // Unsubscribe from old listener if it exists
+                }
+
+                const q = query(postsCollectionRef, orderBy('timestamp', 'desc'));
+                postsListenerUnsubscribe = onSnapshot(q, (snapshot) => {
+                    const posts = [];
+                    snapshot.forEach(doc => {
+                        posts.push({ id: doc.id, ...doc.data() });
+                    });
+                    displayPosts(posts);
+                    console.log("Posts snapshot received. Total posts:", posts.length);
+                    setAppReadyState(true);
+                }, (error) => {
+                    console.error("Error listening to posts:", error);
+                    showModal("Failed to load real-time posts. Please check your connection and Firebase security rules.");
+                    loadingMessage.textContent = "Error loading posts. Check console for details.";
+                    setAppReadyState(false);
+                });
+            });
+        } else {
+            console.error("Firebase 'auth' or 'db' objects are not initialized.");
+            setAppReadyState(false);
+        }
+    </script>
+</body>
+</html>
