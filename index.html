@@ -9,7 +9,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #1a202c; /* Darker background */
             background-image: url('https://www.socialchamp.com/wp-content/uploads/2024/05/image17.png');
             background-size: cover;
             background-repeat: no-repeat;
@@ -17,7 +17,7 @@
             background-attachment: fixed;
             min-height: 100vh;
             display: flex;
-            flex-direction: column; /* Stack the containers vertically */
+            flex-direction: column;
             justify-content: flex-start;
             align-items: center;
             padding: 2rem 1rem;
@@ -26,22 +26,28 @@
         .content-container {
             max-width: 800px;
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+            background-color: rgba(0, 0, 0, 0.2); /* More transparent dark color */
             backdrop-filter: blur(5px); /* Frosted glass effect */
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .content-container {
-            margin-top: 2rem; /* Add space between the two containers */
+            margin-top: 2rem;
         }
         .posts-list {
-            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+            background-color: rgba(0, 0, 0, 0.2); /* More transparent dark color */
+            backdrop-filter: blur(5px);
         }
         .post-card {
-            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white for post cards */
+            background-color: rgba(0, 0, 0, 0.2); /* More transparent dark for post cards */
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .reply-box {
-            background-color: rgba(243, 244, 246, 0.8); /* Semi-transparent gray for reply box */
+            background-color: rgba(255, 255, 255, 0.1); /* Lighter translucent gray for reply box */
+            backdrop-filter: blur(3px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .modal {
             display: none;
@@ -52,22 +58,23 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0,0,0,0.6);
             justify-content: center;
             align-items: center;
         }
         .modal-content {
-            background-color: rgba(254, 254, 254, 0.9); /* Slightly transparent modal */
+            background-color: rgba(30, 41, 59, 0.9); /* Darker, slightly transparent modal */
+            color: #e2e8f0;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
             width: 90%;
             max-width: 400px;
             text-align: center;
             position: relative;
         }
         .close-button {
-            color: #aaa;
+            color: #94a3b8;
             position: absolute;
             top: 10px;
             right: 15px;
@@ -76,7 +83,7 @@
             cursor: pointer;
         }
         .close-button:hover, .close-button:focus {
-            color: black;
+            color: #f8fafc;
         }
         .vote-button {
             transition: all 0.2s ease-in-out;
@@ -97,18 +104,18 @@
 
     <!-- The Header Box -->
     <div class="header-container p-6 md:p-8 text-center">
-        <h1 class="text-4xl font-bold text-gray-800">The WeirdHat Hub</h1>
-        <p class="text-gray-600 mt-2">A place for hat enthusiasts. Share your latest creations!</p>
+        <h1 class="text-4xl font-bold text-gray-200">The WeirdHat Hub</h1>
+        <p class="text-gray-400 mt-2">A place for hat enthusiasts. Share your latest creations!</p>
     </div>
 
-    <!-- The Content Box - now a single, transparent box -->
+    <!-- The Content Box -->
     <div class="content-container p-6 md:p-8 space-y-6">
-        <h2 class="text-2xl font-semibold mb-4 text-gray-700 text-center">Share Something That You Can't Share in Person. 🤔</h2>
+        <h2 class="text-2xl font-semibold mb-4 text-gray-300 text-center">Share Something That You Can't Share in Person. 🤔</h2>
 
         <!-- Post Input -->
         <div class="mb-4">
             <textarea id="post-input"
-                      class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y transition duration-200"
+                      class="w-full p-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y transition duration-200"
                       rows="3"
                       placeholder="Share your thoughts or a link to your hat masterpiece!"></textarea>
             <!-- Centered Post Button -->
@@ -121,12 +128,12 @@
         </div>
 
         <!-- Loading Message -->
-        <div id="loading-message" class="text-center text-gray-500 my-4">Initializing application...</div>
+        <div id="loading-message" class="text-center text-gray-300 my-4">Initializing application...</div>
 
         <!-- Posts List -->
-        <div id="posts-list" class="posts-list text-left space-y-6 max-h-[500px] overflow-y-auto p-2 md:p-4 rounded-lg border border-gray-200">
+        <div id="posts-list" class="posts-list text-left space-y-6 max-h-[500px] overflow-y-auto p-2 md:p-4 rounded-lg border border-gray-600">
             <!-- Posts will be loaded here dynamically -->
-            <p class="text-gray-500 text-center">No posts yet. Be the first to share your thoughts!</p>
+            <p class="text-gray-400 text-center">No posts yet. Be the first to share your thoughts!</p>
         </div>
     </div>
 
@@ -223,7 +230,7 @@
         function setAppReadyState(ready) {
             isAuthReady = ready;
             if (ready) {
-                loadingMessage.textContent = "Application is Ready!";
+                loadingMessage.textContent = ""; // Removed the "Application is Ready!" message
                 postInput.disabled = false;
                 submitPostBtn.disabled = false;
                 submitPostBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -259,7 +266,7 @@
         function displayPosts(posts) {
             postsList.innerHTML = '';
             if (posts.length === 0) {
-                postsList.innerHTML = '<p class="text-gray-500 text-center">No posts yet. Be the first to share your thoughts!</p>';
+                postsList.innerHTML = '<p class="text-gray-400 text-center">No posts yet. Be the first to share your thoughts!</p>';
                 return;
             }
 
@@ -277,34 +284,34 @@
                     if (imageRegex.test(url)) {
                         return `<img src="${url}" alt="User submitted image" class="max-w-full h-auto rounded-lg my-2">`;
                     } else {
-                        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:underline">${url}</a>`;
+                        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-purple-400 hover:underline">${url}</a>`;
                     }
                 });
                 
                 // Construct the main post HTML with the new replies toggle button
                 postElement.innerHTML = `
-                    <p class="text-sm text-gray-600 font-semibold mb-1">Anonymous <span class="text-gray-400 font-normal text-xs ml-2">${date}</span></p>
-                    <p class="text-gray-800 break-words mt-2">${processedPost}</p>
-                    <div class="flex items-center mt-4 text-gray-500 text-sm space-x-4">
+                    <p class="text-sm text-gray-400 font-semibold mb-1">Anonymous <span class="text-gray-500 font-normal text-xs ml-2">${date}</span></p>
+                    <p class="text-gray-200 break-words mt-2">${processedPost}</p>
+                    <div class="flex items-center mt-4 text-gray-400 text-sm space-x-4">
                         <!-- Upvote Button with SVG -->
                         <div class="flex items-center space-x-1">
-                            <button class="vote-button flex items-center space-x-1 text-green-500 hover:text-green-600 transition-colors" data-post-id="${post.id}" data-vote-type="upvote">
+                            <button class="vote-button flex items-center space-x-1 text-green-400 hover:text-green-500 transition-colors" data-post-id="${post.id}" data-vote-type="upvote">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.25l-7 7h4v8h6v-8h4z"/></svg>
                                 <span>Upvote</span>
                             </button>
-                            <span class="font-bold text-gray-700">${post.upvotes || 0}</span>
+                            <span class="font-bold text-gray-300">${post.upvotes || 0}</span>
                         </div>
                         <!-- Downvote Button with SVG -->
                         <div class="flex items-center space-x-1">
-                            <button class="vote-button flex items-center space-x-1 text-red-500 hover:text-red-600 transition-colors" data-post-id="${post.id}" data-vote-type="downvote">
+                            <button class="vote-button flex items-center space-x-1 text-red-400 hover:text-red-500 transition-colors" data-post-id="${post.id}" data-vote-type="downvote">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 19.75l7-7h-4v-8h-6v8h-4z"/></svg>
                                 <span>Downvote</span>
                             </button>
-                            <span class="font-bold text-gray-700">${post.downvotes || 0}</span>
+                            <span class="font-bold text-gray-300">${post.downvotes || 0}</span>
                         </div>
                         <!-- Replies Toggle Button -->
                         <div class="flex items-center space-x-1">
-                           <button class="toggle-replies-btn flex items-center space-x-1 text-gray-500 hover:text-gray-600 transition-colors" data-post-id="${post.id}">
+                           <button class="toggle-replies-btn flex items-center space-x-1 text-gray-400 hover:text-gray-500 transition-colors" data-post-id="${post.id}">
                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                                <span>Replies (${post.repliesCount || 0})</span>
                            </button>
@@ -314,13 +321,13 @@
                     <div class="replies-section hidden transition-all duration-300 ease-in-out mt-4">
                         <!-- Reply Input and Button -->
                         <div class="flex items-center space-x-2">
-                            <input type="text" placeholder="Write a reply..." class="reply-input reply-box w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm">
+                            <input type="text" placeholder="Write a reply..." class="reply-input reply-box w-full p-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm text-gray-200">
                             <button class="submit-reply-btn bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg text-sm transition duration-300 ease-in-out">Reply</button>
                         </div>
                         <!-- Replies List -->
-                        <div class="replies-list border-t border-gray-200 pt-3 mt-3 ml-6 space-y-3">
+                        <div class="replies-list border-t border-gray-600 pt-3 mt-3 ml-6 space-y-3">
                             <!-- Replies will be loaded here dynamically -->
-                            <p class="text-gray-400 text-sm text-center">No replies yet.</p>
+                            <p class="text-gray-500 text-sm text-center">No replies yet.</p>
                         </div>
                     </div>
                 `;
@@ -557,7 +564,7 @@
                 if (repliesListElement) {
                     repliesListElement.innerHTML = '';
                     if (replies.length === 0) {
-                        repliesListElement.innerHTML = '<p class="text-gray-400 text-sm text-center">No replies yet.</p>';
+                        repliesListElement.innerHTML = '<p class="text-gray-500 text-sm text-center">No replies yet.</p>';
                     } else {
                         replies.forEach(reply => {
                             const replyElement = document.createElement('div');
@@ -566,7 +573,7 @@
 
                             replyElement.innerHTML = `
                                 <p class="text-xs text-gray-500 font-semibold mb-1">Anonymous <span class="text-gray-400 font-normal text-xs ml-2">${date}</span></p>
-                                <p class="text-gray-700 break-words text-sm">${reply.content}</p>
+                                <p class="text-gray-300 break-words text-sm">${reply.content}</p>
                             `;
                             repliesListElement.appendChild(replyElement);
                         });
