@@ -10,7 +10,7 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #1a202c; /* Darker background */
-            background-image: url('https://cdn.myhealthteams.com/graphic/616dd31965df61615a8c0962/woriginal/Meme-Famous_Man_Uses_Notoriety_To_Raise_Funds_for_Multiple_Sclerosis-532aa03e3c46107a9342c7f1aad2a4a0.webp?1634587412');
+            background-image: url('https://giffiles.alphacoders.com/220/220122.gif');
             background-size: cover;
             background-repeat: no-repeat;
             background-position: center center;
@@ -98,6 +98,16 @@
             transform: scale(1.0);
             box-shadow: none;
         }
+        .note-bubble {
+            background-color: #3b82f6; /* Blue-500 */
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="p-4">
@@ -113,11 +123,26 @@
         <h2 class="text-2xl font-semibold mb-4 text-gray-300 text-center">Share Something That You Can't Share in Person. 🤔</h2>
 
         <!-- Post Input -->
-        <div class="mb-4">
+        <div class="mb-4 space-y-3">
+            <input type="text" id="post-heading-input"
+                   class="w-full p-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-200"
+                   placeholder="Add a heading for your post...">
+
             <textarea id="post-input"
                       class="w-full p-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y transition duration-200"
                       rows="3"
                       placeholder="Share your thoughts or a link to your hat masterpiece!"></textarea>
+
+            <div class="flex flex-col items-center justify-center space-y-3">
+                <div id="image-preview" class="hidden w-full max-w-sm rounded-lg overflow-hidden border border-gray-600">
+                    <img id="image-preview-img" src="" alt="Image preview" class="w-full h-auto object-cover">
+                </div>
+                <label for="image-upload" class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition duration-300 ease-in-out">
+                    Add an Image (Meme)
+                </label>
+                <input type="file" id="image-upload" class="hidden" accept="image/*">
+            </div>
+
             <!-- Centered Post Button -->
             <div class="flex justify-center mt-3">
                 <button id="submit-post-btn"
@@ -151,9 +176,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, orderBy, runTransaction, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // IMPORTANT: The "Missing or insufficient permissions" error means you need to set up
-        // your Firebase Firestore security rules to allow read and write access for authenticated users.
-        // Copy and paste the following rules into the 'Rules' tab of your Firestore Database in the Firebase Console:
+        // IMPORTANT: Copy and paste the following rules into the 'Rules' tab of your Firebase Console:
         //
         // rules_version = '2';
         // service cloud.firestore {
@@ -201,11 +224,47 @@
 
         // HTML element references
         const postInput = document.getElementById('post-input');
+        const postHeadingInput = document.getElementById('post-heading-input');
         const submitPostBtn = document.getElementById('submit-post-btn');
         const postsList = document.getElementById('posts-list');
         const loadingMessage = document.getElementById('loading-message');
         const modal = document.getElementById('myModal');
         const modalMessage = document.getElementById('modal-message');
+        const imageUploadInput = document.getElementById('image-upload');
+        const imagePreviewContainer = document.getElementById('image-preview');
+        const imagePreviewImg = document.getElementById('image-preview-img');
+
+        let selectedFile = null;
+
+        imageUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const fileSizeLimitMB = 1; // 1MB limit for Firestore
+            
+            if (file) {
+                // Check file size
+                if (file.size > fileSizeLimitMB * 1024 * 1024) {
+                    showModal(`The selected image is too large. Please choose an image smaller than ${fileSizeLimitMB}MB.`);
+                    imagePreviewContainer.classList.add('hidden');
+                    imagePreviewImg.src = '';
+                    selectedFile = null;
+                    imageUploadInput.value = ''; // Clear the input so user can try again
+                    return;
+                }
+
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreviewImg.src = e.target.result;
+                    imagePreviewContainer.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreviewContainer.classList.add('hidden');
+                imagePreviewImg.src = '';
+                selectedFile = null;
+            }
+        });
+
 
         /**
          * Displays a custom modal with a given message.
@@ -230,15 +289,19 @@
         function setAppReadyState(ready) {
             isAuthReady = ready;
             if (ready) {
-                loadingMessage.textContent = ""; // Removed the "Application is Ready!" message
+                loadingMessage.textContent = ""; 
                 postInput.disabled = false;
+                postHeadingInput.disabled = false;
                 submitPostBtn.disabled = false;
+                submitPostBtn.textContent = "Post";
                 submitPostBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 console.log("App is ready. Posting enabled.");
             } else {
                 loadingMessage.textContent = "Initializing application...";
                 postInput.disabled = true;
+                postHeadingInput.disabled = true;
                 submitPostBtn.disabled = true;
+                submitPostBtn.textContent = "Post";
                 submitPostBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 console.log("App is not ready. Posting disabled.");
             }
@@ -260,6 +323,49 @@
         const postsCollectionRef = db ? collection(db, `artifacts/${appId}/public/data/posts`) : null;
 
         /**
+         * Generates a "WeirdHat Note" (keyword/summary) using the Gemini API.
+         * @param {string} postId The ID of the post.
+         * @param {string} postContent The content of the post.
+         */
+        async function generateWeirdHatNote(postId, postContent) {
+            const noteElement = document.getElementById(`note-${postId}`);
+            if (!noteElement) return;
+
+            noteElement.innerHTML = `<span class="text-gray-400">Generating note...</span>`;
+
+            try {
+                const prompt = `Extract a single keyword or a very short, three-word summary from the following text, suitable for a "WeirdHat Note" feature: "${postContent}"`;
+                const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    noteElement.innerHTML = `<span class="note-bubble">${text}</span>`;
+                } else {
+                    throw new Error("API response was empty or malformed.");
+                }
+
+            } catch (error) {
+                console.error("Error generating note:", error);
+                noteElement.innerHTML = `<span class="text-red-400">Failed to generate note.</span>`;
+            }
+        }
+
+        /**
          * Renders the posts to the UI.
          * @param {Array<Object>} posts - An array of post objects.
          */
@@ -279,18 +385,43 @@
                 
                 // Process post content to replace URLs with links/images
                 let processedPost = post.content;
-                processedPost = processedPost.replace(urlRegex, (url) => {
-                    if (imageRegex.test(url)) {
-                        return `<img src="${url}" alt="User submitted image" class="max-w-full h-auto rounded-lg my-2">`;
-                    } else {
-                        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-purple-400 hover:underline">${url}</a>`;
-                    }
-                });
+                if (processedPost) {
+                    processedPost = processedPost.replace(urlRegex, (url) => {
+                        if (imageRegex.test(url)) {
+                            return `<img src="${url}" alt="User submitted image" class="max-w-full h-auto rounded-lg my-2">`;
+                        } else {
+                            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-purple-400 hover:underline">${url}</a>`;
+                        }
+                    });
+                } else {
+                    processedPost = ''; // Ensure processedPost is a string even if post.content is empty
+                }
+
+                let imageHtml = '';
+                if (post.imageDataUrl) {
+                    imageHtml = `<img src="${post.imageDataUrl}" alt="Meme image" class="w-full h-auto max-w-lg mx-auto my-4 rounded-lg shadow-md">`;
+                }
                 
-                // Construct the main post HTML without the timestamp
+                let headingHtml = '';
+                if (post.heading) {
+                    headingHtml = `<h3 class="text-xl font-bold text-gray-200 mb-2">${post.heading}</h3>`;
+                }
+                
+                // Construct the main post HTML
                 postElement.innerHTML = `
                     <p class="text-sm text-gray-400 font-semibold mb-1">Anonymous</p>
+                    ${headingHtml}
+                    ${imageHtml}
                     <p class="text-gray-200 break-words mt-2">${processedPost}</p>
+
+                    <!-- WeirdHat Note -->
+                    <div class="mt-4 flex items-center space-x-2">
+                        <button class="bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-1 px-3 rounded-full transition-colors" onclick="generateNote('${post.id}', \`${post.content ? post.content.replace(/`/g, '\\`') : ''}\`)">
+                            Generate Note
+                        </button>
+                        <span id="note-${post.id}" class="text-xs text-gray-400 italic">No note generated yet.</span>
+                    </div>
+
                     <div class="flex items-center mt-4 text-gray-400 text-sm space-x-4">
                         <!-- Upvote Button with SVG -->
                         <div class="flex items-center space-x-1">
@@ -476,25 +607,52 @@
             }
 
             const postContent = postInput.value.trim();
-            if (postContent === "") {
-                showModal("Please enter a post before submitting.");
+            const postHeading = postHeadingInput.value.trim();
+
+            if (postContent === "" && !selectedFile) {
+                showModal("Please enter a post or add an image before submitting.");
                 return;
+            }
+
+            // Set loading state
+            submitPostBtn.disabled = true;
+            submitPostBtn.textContent = "Posting...";
+
+            // Read the file as a data URL if a file is selected
+            let imageDataUrl = null;
+            if (selectedFile) {
+                imageDataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(selectedFile);
+                });
             }
 
             try {
                 // Add the post to the 'posts' collection
                 await addDoc(postsCollectionRef, {
+                    heading: postHeading,
                     content: postContent,
+                    imageDataUrl: imageDataUrl, // Store the Base64 data URI
                     timestamp: serverTimestamp(), // Use server-side timestamp for consistency
                     upvotes: 0,
                     downvotes: 0,
                     repliesCount: 0 // Initialize replies count
                 });
                 postInput.value = ""; // Clear the input field
+                postHeadingInput.value = "";
+                selectedFile = null;
+                imagePreviewContainer.classList.add('hidden');
+                imagePreviewImg.src = '';
+                imageUploadInput.value = '';
                 console.log("Post submitted successfully.");
             } catch (error) {
                 console.error("Error submitting post:", error);
                 showModal("Failed to submit post. Please try again.");
+            } finally {
+                // Reset button state regardless of success or failure
+                submitPostBtn.disabled = false;
+                submitPostBtn.textContent = "Post";
             }
         }
 
@@ -585,6 +743,9 @@
             });
         }
 
+
+        // Make the generateNote function globally accessible
+        window.generateNote = generateWeirdHatNote;
 
         // Add event listener to the submit button
         submitPostBtn.addEventListener('click', submitPost);
